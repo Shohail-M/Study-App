@@ -1,0 +1,210 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-fixed: #709fff;
+  --color-secondary-container: #4816cb;
+  --color-primary: #88adff;
+  --color-on-tertiary: #00692c;
+  --color-error-container: #9f0519;
+  --color-outline-variant: #40485d;
+  --color-on-error: #490006;
+  --color-tertiary: #c5ffc9;
+  --color-secondary-fixed: #d5cbff;
+  --color-on-primary-container: #002051;
+  --color-on-secondary: #21006e;
+  --color-surface-container: #0f1930;
+  --color-inverse-on-surface: #4d556b;
+  --color-surface-container-highest: #192540;
+  --color-on-secondary-fixed: #3500a4;
+  --color-secondary-dim: #7757fa;
+  --color-inverse-surface: #faf8ff;
+  --color-secondary: #a18eff;
+  --color-on-secondary-fixed-variant: #5229d4;
+  --color-surface-tint: #88adff;
+  --color-on-tertiary-container: #005f28;
+  --color-on-tertiary-fixed: #004a1d;
+  --color-tertiary-dim: #5bf083;
+  --color-tertiary-container: #6bff8f;
+  --color-on-primary: #002c68;
+  --color-surface-variant: #192540;
+  --color-surface: #060e20;
+  --color-surface-container-lowest: #000000;
+  --color-surface-bright: #1f2b49;
+  --color-error: #ff716c;
+  --color-on-surface-variant: #a3aac4;
+  --color-error-dim: #d7383b;
+  --color-surface-container-high: #141f38;
+  --color-primary-fixed-dim: #5790ff;
+  --color-tertiary-fixed: #6bff8f;
+  --color-on-error-container: #ffa8a3;
+  --color-on-background: #dee5ff;
+  --color-inverse-primary: #005ac8;
+  --color-outline: #6d758c;
+  --color-on-primary-fixed: #000000;
+  --color-on-primary-fixed-variant: #002964;
+  --color-secondary-fixed-dim: #c7bbff;
+  --color-background: #060e20;
+  --color-on-tertiary-fixed-variant: #006a2d;
+  --color-primary-dim: #6c9cff;
+  --color-on-secondary-container: #d4c9ff;
+  --color-surface-dim: #060e20;
+  --color-primary-container: #709fff;
+  --color-tertiary-fixed-dim: #5bf083;
+  --color-on-surface: #dee5ff;
+  --color-surface-container-low: #091328;
+
+  --font-headline: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Be Vietnam Pro', sans-serif;
+  --font-label: 'Plus Jakarta Sans', sans-serif;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: var(--color-background);
+    color: var(--color-on-background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .headline-text {
+    font-family: var(--font-headline);
+  }
+
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes growUp {
+  from { height: 0%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(79, 140, 255, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(79, 140, 255, 0.5); }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out both;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s ease-out both;
+}
+
+.animate-grow-up {
+  animation: growUp 1s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
+
+/* Task completion animation */
+@keyframes checkmark {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.task-complete .checkmark {
+  animation: checkmark 0.3s ease-out;
+}
+
+/* Sidebar mobile overlay */
+.sidebar-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
