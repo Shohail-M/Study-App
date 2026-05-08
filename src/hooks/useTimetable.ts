@@ -19,10 +19,11 @@ export function useTimetable() {
   const { user } = useAuth();
 
   // ── Local ─────────────────────────────────────────────
-  const localTimetable = useLiveQuery(
-    () => user && !useFirebase ? dexieDb.timetable.where('userId').equals(user.id).toArray() : Promise.resolve([]),
-    [user?.id],
-    []
+  const localTimetable = useLiveQuery<TimetableEntry[]>(
+    () => user && !useFirebase
+      ? dexieDb.timetable.where('userId').equals(user.id).toArray()
+      : Promise.resolve([] as TimetableEntry[]),
+    [user?.id]
   );
 
   // ── Cloud ─────────────────────────────────────────────

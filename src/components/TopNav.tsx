@@ -19,12 +19,12 @@ export const TopNav: React.FC<TopNavProps> = () => {
       <div className="flex items-center gap-3 sm:gap-6">
         <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-surface-container-high rounded-full border border-white/5">
           <span className="material-symbols-outlined text-orange-400" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-          <span className="text-sm font-bold headline-text text-on-surface">{user?.streak || 12} Day Streak</span>
+          <span className="text-sm font-bold headline-text text-on-surface">{user?.streak ?? 0} Day Streak</span>
         </div>
 
         <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-surface-container-high rounded-full border border-white/5">
           <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-          <span className="text-sm font-bold headline-text text-on-surface">{user?.xp?.toLocaleString() || '2,450'} XP</span>
+          <span className="text-sm font-bold headline-text text-on-surface">{(user?.xp ?? 0).toLocaleString()} XP</span>
         </div>
 
         <button className="material-symbols-outlined text-slate-300 hover:text-primary transition-colors">dark_mode</button>

@@ -23,10 +23,11 @@ export function useTaskManager() {
   const { user, addXP } = useAuth();
 
   // ── Local (Dexie) ───────────────────────────────────────────────────
-  const localTasks = useLiveQuery(
-    () => user && !useFirebase ? dexieDb.tasks.where('userId').equals(user.id).toArray() : Promise.resolve([]),
-    [user?.id],
-    []
+  const localTasks = useLiveQuery<Task[]>(
+    () => user && !useFirebase
+      ? dexieDb.tasks.where('userId').equals(user.id).toArray()
+      : Promise.resolve([] as Task[]),
+    [user?.id]
   );
 
   // ── Cloud (Firestore) ────────────────────────────────────────────────

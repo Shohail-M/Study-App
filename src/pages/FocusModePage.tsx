@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useTaskManager } from '../hooks/useTaskManager';
 import { useNavigate } from 'react-router-dom';
@@ -9,13 +9,15 @@ export const FocusModePage: React.FC = () => {
   const navigate = useNavigate();
   const currentTask = incompleteTasks[0];
 
-  const { isActive, timeLeft, toggleTimer, resetTimer } = useTimer();
+  const { isActive, timeLeft, toggleTimer, resetTimer, pauseTimer, seekTo, totalTime } = useTimer();
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
 
   // Relaxation animation state: pulse speed based on isActive
   const breathRef = useRef<HTMLDivElement>(null);
+  const dialRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!breathRef.current) return;
@@ -25,6 +27,19 @@ export const FocusModePage: React.FC = () => {
       breathRef.current.style.animationPlayState = 'paused';
     }
   }, [isActive]);
+
+  const setFromPointerEvent = useCallback((e: React.PointerEvent) => {
+    if (!dialRef.current || totalTime <= 0) return;
+    const rect = dialRef.current.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const x = e.clientX - cx;
+    const y = e.clientY - cy;
+    const angle = Math.atan2(y, x);
+    const angleFromTop = (angle + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
+    const fraction = angleFromTop / (2 * Math.PI);
+    seekTo(totalTime * (1 - fraction));
+  }, [seekTo, totalTime]);
 
   return (
     <DashboardLayout hideSidebar hideTopNav>
@@ -114,16 +129,41 @@ export const FocusModePage: React.FC = () => {
           )}
 
           {/* Timer display */}
-          <div
-            className="text-[8rem] md:text-[12rem] font-black headline-text text-white leading-none tracking-tighter mb-16"
-            style={{
-              textShadow: isActive
-                ? '0 0 60px rgba(79,140,255,0.4), 0 0 120px rgba(79,140,255,0.2)'
-                : '0 0 40px rgba(255,255,255,0.1)',
-              transition: 'text-shadow 1s ease',
-            }}
-          >
-            {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+          <div className="relative mb-16">
+            <div
+              ref={dialRef}
+              className="absolute inset-0 -m-10 rounded-full touch-none select-none"
+              onPointerDown={(e) => {
+                setIsDragging(true);
+                pauseTimer();
+                (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+                setFromPointerEvent(e);
+              }}
+              onPointerMove={(e) => {
+                if (!isDragging) return;
+                setFromPointerEvent(e);
+              }}
+              onPointerUp={(e) => {
+                setIsDragging(false);
+                try { (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
+              }}
+              onPointerCancel={() => setIsDragging(false)}
+              title="Drag around to adjust or end the timer"
+            />
+            <div
+              className="text-[8rem] md:text-[12rem] font-black headline-text text-white leading-none tracking-tighter"
+              style={{
+                textShadow: isActive
+                  ? '0 0 60px rgba(79,140,255,0.4), 0 0 120px rgba(79,140,255,0.2)'
+                  : '0 0 40px rgba(255,255,255,0.1)',
+                transition: 'text-shadow 1s ease',
+              }}
+            >
+              {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+            </div>
+            <p className="mt-2 text-center text-[10px] text-outline/60 font-bold uppercase tracking-[0.25em]">
+              Drag to adjust
+            </p>
           </div>
 
           <div className="flex items-center gap-6">

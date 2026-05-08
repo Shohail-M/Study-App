@@ -5,7 +5,7 @@ import { StartSessionModal } from './StartSessionModal';
 
 export const WelcomeHeader: React.FC = () => {
   const { user } = useAuth();
-  const { isActive, timeLeft, subject, pauseTimer, resetTimer } = useTimer();
+  const { isActive, timeLeft, subject, resetTimer } = useTimer();
   const [showModal, setShowModal] = useState(false);
 
   const displayName = user?.name?.split(' ')[0] || 'Archer';

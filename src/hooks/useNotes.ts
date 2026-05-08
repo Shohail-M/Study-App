@@ -5,7 +5,7 @@ import type { Note } from '../data/db';
 import { useAuth } from '../context/AuthContext';
 import { db as firestoreDb } from '../config/firebase';
 import {
-  collection, addDoc, updateDoc, deleteDoc,
+  collection, updateDoc, deleteDoc,
   doc, query, where, onSnapshot, serverTimestamp, getDoc
 } from 'firebase/firestore';
 

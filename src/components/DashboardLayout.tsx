@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopNav } from './TopNav';
 import { FloatingActionButton } from './FloatingActionButton';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useProgression } from '../hooks/useProgression';
 
 interface DashboardLayoutProps {
   readonly children: React.ReactNode;
@@ -15,6 +16,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   hideSidebar = false, 
   hideTopNav = false 
 }) => {
+  // Keep streak/level/rank synced from real activity.
+  useProgression();
+
   const location = useLocation();
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState('home');

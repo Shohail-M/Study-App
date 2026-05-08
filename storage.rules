@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // Chat uploads: users can only write to their own uid subtree.
+    match /chat/{scope}/{scopeId}/{userId}/{messageId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && userId == uid();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

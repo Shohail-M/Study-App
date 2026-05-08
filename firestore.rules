@@ -2,17 +2,90 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 4, 26);
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // Users can read/write their own profile doc.
+    match /users/{userId} {
+      allow read, write: if signedIn() && userId == uid();
+    }
+
+    // Tasks / notes / timetable / studySessions: user-owned documents.
+    function isOwner() { return resource.data.userId == uid(); }
+    function isCreatingOwner() { return request.resource.data.userId == uid(); }
+
+    match /tasks/{docId} {
+      allow create: if signedIn() && isCreatingOwner();
+      allow read, update, delete: if signedIn() && isOwner();
+    }
+    match /notes/{docId} {
+      allow create: if signedIn() && isCreatingOwner();
+      allow read, update, delete: if signedIn() && isOwner();
+    }
+    match /timetable/{docId} {
+      allow create: if signedIn() && isCreatingOwner();
+      allow read, update, delete: if signedIn() && isOwner();
+    }
+    match /studySessions/{docId} {
+      allow create: if signedIn() && isCreatingOwner();
+      allow read, update, delete: if signedIn() && isOwner();
+    }
+
+    // Rooms (Pomodoro party)
+    match /rooms/{roomId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerId == uid();
+      allow update: if signedIn() && (resource.data.ownerId == uid() || exists(/databases/$(database)/documents/rooms/$(roomId)/members/$(request.auth.uid)));
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+
+      match /members/{memberId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && memberId == uid();
+        allow delete: if signedIn() && (memberId == uid() || get(/databases/$(database)/documents/rooms/$(roomId)).data.ownerId == uid());
+      }
+
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.senderId == uid();
+        allow update, delete: if false;
+      }
+    }
+
+    // Guilds (study groups)
+    match /guilds/{guildId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerId == uid();
+      allow update, delete: if signedIn() && resource.data.ownerId == uid();
+
+      match /members/{memberId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && memberId == uid();
+        allow delete: if signedIn() && (memberId == uid() || get(/databases/$(database)/documents/guilds/$(guildId)).data.ownerId == uid());
+      }
+
+      match /messages/{messageId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && request.resource.data.senderId == uid();
+        allow update, delete: if false;
+      }
+    }
+
+    // Weekly seasons (leaderboards) - read for all signed-in users.
+    match /seasons/{weekKey} {
+      allow read: if signedIn();
+      allow write: if false;
+
+      match /users/{userId} {
+        allow read: if signedIn();
+        // v1: client can update own weekly stats. Move this to Cloud Functions later.
+        allow create, update: if signedIn() && userId == uid();
+        allow delete: if false;
+      }
+
+      match /guilds/{guildId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
     }
   }
 }

@@ -16,6 +16,8 @@ interface TimerContextType {
   toggleTimer: () => void;
   switchMode: (m: 'work' | 'break') => void;
   setBgMusic: (music: string) => void;
+  seekTo: (nextTimeLeftSecs: number) => void;
+  endNow: () => void;
 }
 
 const TimerContext = createContext<TimerContextType | undefined>(undefined);
@@ -89,6 +91,23 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
+  const completePhase = useCallback(() => {
+    setIsActive(false);
+    audioRef.current?.pause();
+
+    if (mode === 'work') {
+      const durationMinutes = Math.round(workDurationRef.current / 60);
+      addSession(subjectRef.current, durationMinutes, 100);
+      setMode('break');
+      setTimeLeft(breakDuration);
+      setTotalTime(breakDuration);
+    } else {
+      setMode('work');
+      setTimeLeft(workDurationRef.current);
+      setTotalTime(workDurationRef.current);
+    }
+  }, [mode, breakDuration, addSession]);
+
   // Timer countdown
   useEffect(() => {
     if (!isActive) return;
@@ -97,20 +116,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          setIsActive(false);
-          audioRef.current?.pause();
-
-          if (mode === 'work') {
-            const durationMinutes = Math.round(workDurationRef.current / 60);
-            addSession(subjectRef.current, durationMinutes, 100);
-            setMode('break');
-            setTimeLeft(breakDuration);
-            setTotalTime(breakDuration);
-          } else {
-            setMode('work');
-            setTimeLeft(workDurationRef.current);
-            setTotalTime(workDurationRef.current);
-          }
+          completePhase();
           return 0;
         }
         return prev - 1;
@@ -118,7 +124,7 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isActive, mode, breakDuration, addSession]);
+  }, [isActive, completePhase]);
 
   const startTimer = useCallback((subj: string, durationSecs: number, music?: string) => {
     setSubject(subj);
@@ -164,6 +170,18 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setBgMusicState(music);
   }, []);
 
+  const seekTo = useCallback((nextTimeLeftSecs: number) => {
+    const clamped = Math.max(0, Math.min(totalTime, Math.round(nextTimeLeftSecs)));
+    setTimeLeft(clamped);
+    if (clamped === 0) {
+      completePhase();
+    }
+  }, [totalTime, completePhase]);
+
+  const endNow = useCallback(() => {
+    seekTo(0);
+  }, [seekTo]);
+
   return (
     <TimerContext.Provider value={{
       isActive,
@@ -179,6 +197,8 @@ export const TimerProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleTimer,
       switchMode,
       setBgMusic,
+      seekTo,
+      endNow,
     }}>
       {children}
     </TimerContext.Provider>

@@ -11,7 +11,7 @@ import {
   updatePassword,
   updateProfile,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 
 const useFirebase = !!(
   import.meta.env.VITE_FIREBASE_API_KEY &&
@@ -30,6 +30,7 @@ interface AuthContextType {
   updateUser: (updates: Partial<User>) => Promise<void>;
   changePassword: (newPassword: string) => Promise<{ success: boolean; error?: string }>;
   addXP: (amount: number) => Promise<void>;
+  resetProgress: () => Promise<{ success: boolean; error?: string }>;
   isGoogleUser: boolean;
 }
 
@@ -40,6 +41,7 @@ const DEFAULT_SETTINGS: User['settings'] = {
   pomodoroWork: 25,
   pomodoroBreak: 5,
   pomodoroCycles: 4,
+  dailyTargetHours: 6,
   defaultSubjects: ['Math', 'Science', 'History', 'English'],
   bgMusic: 'none',
   theme: 'dark',
@@ -124,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (useFirebase) {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         let profile = await loadFirestoreUser(cred.user.uid);
-        
+
         // Robustness: create profile if missing (helps with cross-device sync if signup was interrupted)
         if (!profile && cred.user.email) {
           profile = {
@@ -141,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           await saveFirestoreUser(profile);
         }
-        
+
         if (!profile) return { success: false, error: 'User profile not found and could not be created.' };
         setUser(profile);
         return { success: true };
@@ -156,8 +158,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e: any) {
       const msg = e?.code === 'auth/user-not-found' ? 'No account found with this email.'
         : e?.code === 'auth/wrong-password' ? 'Incorrect password.'
-        : e?.code === 'auth/invalid-credential' ? 'Invalid email or password.'
-        : 'Login failed. Please try again.';
+          : e?.code === 'auth/invalid-credential' ? 'Invalid email or password.'
+            : 'Login failed. Please try again.';
       return { success: false, error: msg };
     }
   }, []);
@@ -206,8 +208,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Signup error details:', e);
       const msg = e?.code === 'auth/email-already-in-use' ? 'An account with this email already exists.'
         : e?.code === 'auth/weak-password' ? 'Password should be at least 6 characters.'
-        : e?.code === 'auth/operation-not-allowed' ? 'Email/Password signup is not enabled in Firebase Console.'
-        : e?.message || 'Signup failed. Please try again.';
+          : e?.code === 'auth/operation-not-allowed' ? 'Email/Password signup is not enabled in Firebase Console.'
+            : e?.message || 'Signup failed. Please try again.';
       return { success: false, error: msg };
     }
   }, []);
@@ -216,10 +218,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithGoogle = useCallback(async () => {
     try {
       if (!useFirebase) return { success: false, error: 'Google login is not available in local mode.' };
-      
+
       const result = await signInWithPopup(auth, googleProvider);
       if (!result.user) throw new Error('Could not get user from Google');
-      
+
       // We don't call setUser here as onAuthStateChanged will handle it 
       // when the auth state changes from the successful popup sign-in.
       // We just need to wait a tiny bit to ensure the profile is loaded.
@@ -306,10 +308,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  const resetProgress = useCallback(async () => {
+    if (!user) return { success: false, error: 'Not signed in.' };
+    try {
+      const updatedUser: User = {
+        ...user,
+        xp: 0,
+        level: 1,
+        streak: 0,
+        studyTimeMs: 0,
+      };
+
+      if (useFirebase) {
+        await updateDoc(doc(firestoreDb, 'users', user.id), {
+          xp: 0,
+          level: 1,
+          streak: 0,
+          studyTimeMs: 0,
+        });
+
+        const sessionsQ = query(collection(firestoreDb, 'studySessions'), where('userId', '==', user.id));
+        const tasksQ = query(collection(firestoreDb, 'tasks'), where('userId', '==', user.id));
+        const [sessionsSnap, tasksSnap] = await Promise.all([getDocs(sessionsQ), getDocs(tasksQ)]);
+
+        const batch = writeBatch(firestoreDb);
+        sessionsSnap.docs.forEach(d => batch.delete(d.ref));
+        tasksSnap.docs.forEach(d => batch.update(d.ref, { completed: false }));
+        await batch.commit();
+      } else {
+        await dexieDb.transaction('rw', dexieDb.users, dexieDb.studySessions, dexieDb.tasks, dexieDb.books, async () => {
+          await dexieDb.users.put(updatedUser);
+          await dexieDb.studySessions.where('userId').equals(user.id).delete();
+          const tasks = await dexieDb.tasks.where('userId').equals(user.id).toArray();
+          await Promise.all(tasks.map(t => dexieDb.tasks.update(t.id, { completed: false })));
+          const books = await dexieDb.books.where('userId').equals(user.id).toArray();
+          await Promise.all(books.map(b => dexieDb.books.update(b.id, { progress: 0 })));
+        });
+      }
+
+      setUser(updatedUser);
+      return { success: true };
+    } catch (e: any) {
+      console.error('Failed to reset progress', e);
+      return { success: false, error: e?.message || 'Failed to reset progress.' };
+    }
+  }, [user]);
+
   const isGoogleUser = useFirebase && !!auth.currentUser?.providerData.some(p => p.providerId === 'google.com');
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isAuthLoading, login, signup, loginWithGoogle, logout, updateUser, changePassword, addXP, isGoogleUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isAuthLoading, login, signup, loginWithGoogle, logout, updateUser, changePassword, addXP, resetProgress, isGoogleUser }}>
       {children}
     </AuthContext.Provider>
   );

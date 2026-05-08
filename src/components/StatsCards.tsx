@@ -28,7 +28,7 @@ export const StatsCards: React.FC = () => {
           </span>
         </div>
         <div>
-          <h4 className="text-2xl sm:text-3xl font-black headline-text text-white">{user?.streak || 12} Days</h4>
+          <h4 className="text-2xl sm:text-3xl font-black headline-text text-white">{user?.streak ?? 0} Days</h4>
           <p className="text-secondary-fixed text-xs sm:text-sm font-bold uppercase tracking-widest">Master Streak</p>
         </div>
         <div className="absolute top-0 right-0 p-4 opacity-10">

@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { db as firestoreDb } from '../config/firebase';
 import {
   collection, addDoc, query, where,
-  onSnapshot, serverTimestamp, updateDoc, doc
+  onSnapshot, serverTimestamp, updateDoc, doc, increment, setDoc
 } from 'firebase/firestore';
 
 const useFirebase = !!(
@@ -19,14 +19,25 @@ function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
+function weekKey(d = new Date()): string {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
 export function useStudySessions() {
   const { user, addXP } = useAuth();
+  const currentWeekKey = weekKey();
 
   // ── Local ────────────────────────────────────────────────────────────
-  const localSessions = useLiveQuery(
-    () => user && !useFirebase ? dexieDb.studySessions.where('userId').equals(user.id).toArray() : Promise.resolve([]),
-    [user?.id],
-    []
+  const localSessions = useLiveQuery<StudySession[]>(
+    () => user && !useFirebase
+      ? dexieDb.studySessions.where('userId').equals(user.id).toArray()
+      : Promise.resolve([] as StudySession[]),
+    [user?.id]
   );
 
   // ── Cloud ────────────────────────────────────────────────────────────
@@ -65,6 +76,19 @@ export function useStudySessions() {
       await updateDoc(doc(firestoreDb, 'users', user.id), {
         studyTimeMs: (user.studyTimeMs || 0) + durationMs,
       });
+
+      // v1: update weekly leaderboard doc (client-side). Prefer Cloud Functions later.
+      const weeklyRef = doc(firestoreDb, 'seasons', currentWeekKey, 'users', user.id);
+      await setDoc(weeklyRef, {
+        displayName: user.name,
+        photoURL: '',
+        focusMinutes: increment(durationMinutes),
+        xpGained: increment(durationMinutes * 5),
+        tasksCompleted: increment(0),
+        booksCompleted: increment(0),
+        score: increment(durationMinutes * 2),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     } else {
       const newSession: StudySession = {
         id: generateId(),
@@ -81,7 +105,7 @@ export function useStudySessions() {
     }
 
     addXP(durationMinutes * 5);
-  }, [user, addXP]);
+  }, [user, addXP, currentWeekKey]);
 
   return { sessions, addSession };
 }

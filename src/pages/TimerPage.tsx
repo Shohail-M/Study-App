@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useTimer } from '../context/TimerContext';
 import { TimerSettingsModal } from '../components/TimerSettingsModal';
@@ -12,13 +12,33 @@ export const TimerPage: React.FC = () => {
     toggleTimer,
     resetTimer,
     switchMode,
+    pauseTimer,
+    seekTo,
   } = useTimer();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const dialRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const progressPercent = totalTime > 0 ? ((totalTime - timeLeft) / totalTime) * 100 : 0;
+
+  const setFromPointerEvent = useCallback((e: React.PointerEvent) => {
+    if (!dialRef.current || totalTime <= 0) return;
+    const rect = dialRef.current.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const x = e.clientX - cx;
+    const y = e.clientY - cy;
+
+    // Angle with 0 at top, clockwise increasing.
+    const angle = Math.atan2(y, x); // -PI..PI, 0 at right
+    const angleFromTop = (angle + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
+    const fraction = angleFromTop / (2 * Math.PI); // 0..1
+    const nextTimeLeft = totalTime * (1 - fraction);
+    seekTo(nextTimeLeft);
+  }, [totalTime, seekTo]);
 
   return (
     <DashboardLayout>
@@ -48,7 +68,27 @@ export const TimerPage: React.FC = () => {
         </div>
 
         {/* Circular Timer Visual */}
-        <div className="relative w-64 h-64 mb-10 flex items-center justify-center z-10">
+        <div
+          ref={dialRef}
+          className="relative w-64 h-64 mb-10 flex items-center justify-center z-10 touch-none select-none"
+          onPointerDown={(e) => {
+            // Dragging the dial lets you "scrub" time and end early.
+            setIsDragging(true);
+            pauseTimer();
+            (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+            setFromPointerEvent(e);
+          }}
+          onPointerMove={(e) => {
+            if (!isDragging) return;
+            setFromPointerEvent(e);
+          }}
+          onPointerUp={(e) => {
+            setIsDragging(false);
+            try { (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
+          }}
+          onPointerCancel={() => setIsDragging(false)}
+          title="Drag around the circle to adjust or end the timer"
+        >
           <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="45" fill="none" className="stroke-surface-container-highest" strokeWidth="4" />
             <circle
@@ -66,6 +106,9 @@ export const TimerPage: React.FC = () => {
             </h1>
             <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mt-2">
               {mode === 'work' ? 'Remaining Focus Time' : 'Relax & Recharge'}
+            </p>
+            <p className="text-[10px] mt-3 text-outline/70 font-bold uppercase tracking-[0.2em]">
+              Drag to adjust
             </p>
           </div>
         </div>

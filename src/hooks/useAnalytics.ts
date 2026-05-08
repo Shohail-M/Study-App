@@ -1,21 +1,15 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../data/db';
 import { useAuth } from '../context/AuthContext';
+import { useStudySessions } from './useStudySessions';
+import { useTaskManager } from './useTaskManager';
+import { useBooks } from './useBooks';
+import { useTimer } from '../context/TimerContext';
 
 export function useAnalytics() {
   const { user } = useAuth();
-
-  const studySessions = useLiveQuery(
-    () => user ? db.studySessions.where('userId').equals(user.id).toArray() : [],
-    [user?.id],
-    []
-  );
-
-  const tasks = useLiveQuery(
-    () => user ? db.tasks.where('userId').equals(user.id).toArray() : [],
-    [user?.id],
-    []
-  );
+  const { sessions: studySessions } = useStudySessions();
+  const { tasks } = useTaskManager();
+  const { books } = useBooks();
+  const timer = useTimer();
 
   // Aggregated Stats
   const totalStudyTimeMs = studySessions?.reduce((acc, s) => acc + s.durationMs, 0) || 0;
@@ -26,6 +20,7 @@ export function useAnalytics() {
     : 0;
 
   const completedTasksCount = tasks?.filter(t => t.completed).length || 0;
+  const completedBooksCount = books?.filter(b => b.progress === 100).length || 0;
 
   // Subject Breakdown
   const subjectMinutes: Record<string, number> = {};
@@ -44,6 +39,14 @@ export function useAnalytics() {
   // Weekly Focus Chart Data (last 7 days for the orb chart)
   const today = new Date();
   today.setHours(0,0,0,0);
+
+  const dailyTargetHours = user?.settings?.dailyTargetHours ?? 6;
+
+  // Include active work timer time in today's total so progress becomes dynamic "while studying".
+  const activeWorkMs =
+    timer?.isActive && timer?.mode === 'work' && timer?.totalTime > 0
+      ? Math.max(0, (timer.totalTime - timer.timeLeft) * 1000)
+      : 0;
   
   const weeklyProgress = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(today);
@@ -55,15 +58,33 @@ export function useAnalytics() {
       return sessionDate.getTime() === d.getTime();
     }) || [];
     
-    const dayMs = daySessions.reduce((acc, s) => acc + s.durationMs, 0);
+    const baseDayMs = daySessions.reduce((acc, s) => acc + s.durationMs, 0);
+    const dayMs = i === 6 ? baseDayMs + activeWorkMs : baseDayMs;
     const dayHrs = dayMs / (1000 * 60 * 60);
-    const GOAL_HRS = 6;
     
     return {
       day: d.toLocaleDateString('en-US', { weekday: 'short' }),
       isToday: i === 6,
-      percentage: Math.min(100, Math.round((dayHrs / GOAL_HRS) * 100)),
+      percentage: Math.min(100, Math.round((dayHrs / dailyTargetHours) * 100)),
       label: dayHrs > 0 ? `${dayHrs.toFixed(1)}h` : ''
+    };
+  });
+
+  // Weekly Focus Insight: last 7 days avg focus level (0-100)
+  const chartData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    const daySessions = studySessions?.filter(s => {
+      const sessionDate = new Date(s.date);
+      sessionDate.setHours(0,0,0,0);
+      return sessionDate.getTime() === d.getTime();
+    }) || [];
+    const avg = daySessions.length
+      ? Math.round(daySessions.reduce((acc, s) => acc + (s.focusLevel || 0), 0) / daySessions.length)
+      : 0;
+    return {
+      label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      height: avg,
     };
   });
 
@@ -72,6 +93,9 @@ export function useAnalytics() {
     avgConcentration,
     completedTasksCount,
     subjectBreakdown,
-    weeklyProgress
+    weeklyProgress,
+    chartData,
+    dailyTargetHours,
+    completedBooksCount,
   };
 }

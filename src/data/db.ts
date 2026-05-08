@@ -14,6 +14,7 @@ export interface User {
     pomodoroWork: number;
     pomodoroBreak: number;
     pomodoroCycles: number;
+    dailyTargetHours?: number;
     defaultSubjects?: string[];
     bgMusic?: string;
     theme?: string;

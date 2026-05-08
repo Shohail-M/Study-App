@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
+import { getAllRanks } from '../utils/progression';
 
 export const SettingsPage: React.FC = () => {
-  const { user, updateUser, changePassword, isGoogleUser } = useAuth();
+  const { user, updateUser, changePassword, isGoogleUser, resetProgress } = useAuth();
   
   const [name, setName] = useState(user?.name || '');
   const [newPassword, setNewPassword] = useState('');
@@ -16,6 +17,10 @@ export const SettingsPage: React.FC = () => {
   const [theme, setTheme] = useState(user?.settings?.theme || 'dark');
   const [geminiApiKey, setGeminiApiKey] = useState(user?.settings?.geminiApiKey || '');
   const [isSaved, setIsSaved] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetStatus, setResetStatus] = useState<{ success?: boolean; error?: string } | null>(null);
+  const [confirmResetText, setConfirmResetText] = useState('');
+  const [isRanksOpen, setIsRanksOpen] = useState(false);
 
   const handleAddSubject = () => {
     if (newSubject.trim() && !subjects.includes(newSubject.trim())) {
@@ -165,6 +170,70 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Progress Reset */}
+      <div className="bg-surface-container-high rounded-2xl p-6 sm:p-8 border border-white/5 animate-fade-in-up delay-150 mb-8">
+        <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+          <span className="material-symbols-outlined text-error">restart_alt</span>
+          Reset Progress
+        </h3>
+        <p className="text-sm text-on-surface-variant mb-6">
+          This will reset your XP, level, streak, focus time and clear your study sessions. Your tasks will be set back to incomplete and your book progress will be reset.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div className="md:col-span-2">
+            <label className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-2 block">
+              Type <span className="text-white">RESET</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={confirmResetText}
+              onChange={(e) => setConfirmResetText(e.target.value)}
+              placeholder="RESET"
+              className="w-full bg-surface-container border border-white/10 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-error/40"
+            />
+          </div>
+
+          <button
+            disabled={isResetting || confirmResetText.trim().toUpperCase() !== 'RESET'}
+            onClick={async () => {
+              if (confirmResetText.trim().toUpperCase() !== 'RESET') return;
+              setIsResetting(true);
+              setResetStatus(null);
+              const res = await resetProgress();
+              setIsResetting(false);
+              setResetStatus(res.success ? { success: true } : { success: false, error: res.error || 'Reset failed.' });
+              if (res.success) setConfirmResetText('');
+            }}
+            className={`px-6 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
+              isResetting || confirmResetText.trim().toUpperCase() !== 'RESET'
+                ? 'bg-surface-container-highest text-on-surface-variant cursor-not-allowed'
+                : 'bg-error text-white hover:scale-[1.02] active:scale-95'
+            }`}
+          >
+            <span className="material-symbols-outlined">{isResetting ? 'hourglass_top' : 'delete_forever'}</span>
+            {isResetting ? 'Resetting…' : 'Reset Now'}
+          </button>
+        </div>
+
+        {resetStatus && (
+          <div className={`mt-4 p-3 rounded-lg flex items-center gap-2 text-xs font-bold ${resetStatus.success ? 'bg-tertiary/10 text-tertiary' : 'bg-error/10 text-error'}`}>
+            <span className="material-symbols-outlined text-sm">{resetStatus.success ? 'check_circle' : 'error'}</span>
+            {resetStatus.success ? 'Progress reset successfully.' : resetStatus.error}
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={() => setIsRanksOpen(true)}
+            className="px-4 py-2 bg-surface-container-highest text-on-surface font-bold rounded-lg hover:bg-surface-bright transition-colors flex items-center gap-2 text-sm"
+          >
+            <span className="material-symbols-outlined text-base">military_tech</span>
+            View Ranks
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in-up delay-100">
         
         {/* Subjects Settings */}
@@ -277,8 +346,61 @@ export const SettingsPage: React.FC = () => {
         </div>
 
       </div>
+
+      {isRanksOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in"
+            onClick={() => setIsRanksOpen(false)}
+          />
+          <div className="relative w-full max-w-2xl bg-surface-container-high rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl animate-scale-in">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-xl font-bold headline-text text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-secondary">military_tech</span>
+                  Ranks
+                </h2>
+                <p className="text-sm text-on-surface-variant mt-1">Rank increases with your overall score (XP + streak + tasks + books).</p>
+              </div>
+              <button
+                onClick={() => setIsRanksOpen(false)}
+                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-bright transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {getAllRanks().map(r => (
+                  <div
+                    key={r.name}
+                    className={`p-4 rounded-2xl border ${user?.rank === r.name ? 'border-primary bg-primary/10' : 'border-white/5 bg-surface-container'} transition-colors`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-black text-white headline-text">{r.name}</p>
+                      {user?.rank === r.name && (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">Current</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Unlock at <span className="text-white font-bold">{r.minScore.toLocaleString()}</span> score
+                      {r.nextMinScore ? (
+                        <> · Next at <span className="text-white font-bold">{r.nextMinScore.toLocaleString()}</span></>
+                      ) : (
+                        <> · <span className="text-tertiary font-bold">Top Rank</span></>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
 
 export default SettingsPage;
+
