@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useFirebase } from '../utils/firebaseMode';
@@ -74,6 +74,12 @@ export function useGuilds() {
     await setDoc(doc(db, 'guilds', guildId, 'members', user.id), { displayName: user.name, photoURL: '', role: 'member', joinedAt: serverTimestamp() }, { merge: true });
   }, [user]);
 
+  const leaveGuild = useCallback(async (guildId: string) => {
+    if (!useFirebase) throw new Error('Guilds require Firebase mode.');
+    if (!user) throw new Error('Not signed in.');
+    await deleteDoc(doc(db, 'guilds', guildId, 'members', user.id));
+  }, [user]);
+
   const deleteGuild = useCallback(async (guildId: string) => {
     if (!useFirebase) throw new Error('Guilds require Firebase mode.');
     if (!user) throw new Error('Not signed in.');
@@ -86,7 +92,7 @@ export function useGuilds() {
     await deleteDoc(doc(db, 'guilds', guildId));
   }, [user]);
 
-  return { guilds, isLoading, createGuild, joinGuild, deleteGuild };
+  return { guilds, isLoading, createGuild, joinGuild, leaveGuild, deleteGuild };
 }
 
 export function useGuild(guildId: string) {

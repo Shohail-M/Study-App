@@ -38,15 +38,27 @@ export function useProgression() {
 
   useEffect(() => {
     if (!user) return;
+    const u = user as any;
     const needsUpdate =
       user.streak !== streak ||
       user.level !== level ||
-      (user.rank || '') !== rankInfo.name;
+      (user.rank || '') !== rankInfo.name ||
+      u.completedTasks !== completedTasks ||
+      u.completedBooks !== completedBooks ||
+      u.score !== score;
     if (!needsUpdate) return;
 
     // Fire-and-forget; this keeps UI + persistence in sync without user actions.
-    updateUser({ streak, level, rank: rankInfo.name }).catch(() => {});
-  }, [user?.id, user?.streak, user?.level, user?.rank, streak, level, rankInfo.name, updateUser]);
+    // The extra fields (completedTasks/Books/score) let peers compute friends' ranks
+    // through progression.ts without needing access to private session data.
+    updateUser({
+      streak, level, rank: rankInfo.name,
+      completedTasks, completedBooks, score,
+    } as any).catch(() => {});
+  }, [
+    user?.id, user?.streak, user?.level, user?.rank,
+    streak, level, rankInfo.name, completedTasks, completedBooks, score, updateUser,
+  ]);
 
   return { streak, level, rankInfo, score, completedTasks, completedBooks };
 }

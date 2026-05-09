@@ -10,17 +10,20 @@ export const NotesPage: React.FC = () => {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [proposedContent, setProposedContent] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Auto-save debouncing
+  // Auto-save debouncing — paused while a proposed change is awaiting review so we
+  // don't accidentally persist the user's pre-review state on top of their input.
   useEffect(() => {
-    if (selectedNote && isEditing) {
+    if (selectedNote && isEditing && proposedContent === null) {
       const timer = setTimeout(() => {
         saveNote(selectedNote.id, selectedNote);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [selectedNote, isEditing, saveNote]);
+  }, [selectedNote, isEditing, saveNote, proposedContent]);
 
   const handleCreateNote = () => {
     const newNote: Note = {
@@ -48,26 +51,65 @@ export const NotesPage: React.FC = () => {
     }
     setIsEditing(false);
     setSelectedNote(null);
+    setProposedContent(null);
+    setAiError(null);
   };
 
   const handleAIMagic = async () => {
     if (!selectedNote) return;
-    const prompt = window.prompt("What should the AI generate notes about? (e.g. 'Key concepts of Cellular Respiration')");
-    if (!prompt) return;
-    
+    const instruction = window.prompt(
+      "Tell the AI what to do with this note (e.g. 'Add a section on mitochondria', 'Rewrite the intro for clarity', 'Delete bullet points about glycolysis')."
+    );
+    if (!instruction) return;
+
     setIsGenerating(true);
+    setAiError(null);
     try {
       const { askGemini } = await import('../lib/gemini');
       const apiKey = user?.settings?.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
-      const response = await askGemini(`Generate comprehensive, well-structured study notes in HTML format about returning ONLY the markdown/HTML block: ${prompt}`, apiKey);
-      
-      const newContent = selectedNote.content + "<br><br>" + (response || '').replace(/```html|```/g, '');
-      setSelectedNote({ ...selectedNote, content: newContent });
+      // Pass the current note content so the model can edit / delete existing
+      // lines instead of always appending. The model is asked to return the
+      // FULL revised note as an HTML fragment we can show in a review pane.
+      const prompt = [
+        "You are an editor for the user's existing study note (HTML fragment).",
+        "Apply the user's instruction to the note: you may add, edit, or remove lines.",
+        "Return ONLY the FULL revised note as a valid HTML fragment (no <html>/<body> wrappers, no markdown fences, no commentary).",
+        "Preserve content the user did not ask to change.",
+        "",
+        `Title: ${selectedNote.title || 'Untitled'}`,
+        `Subject: ${selectedNote.subject || 'General'}`,
+        "",
+        "Current note (HTML):",
+        selectedNote.content || '<p></p>',
+        "",
+        `User instruction: ${instruction}`,
+      ].join('\n');
+
+      const response = await askGemini(prompt, apiKey);
+      const cleaned = (response || '').replace(/```html|```/g, '').trim();
+      if (!cleaned) {
+        setAiError('AI returned an empty response.');
+        return;
+      }
+      setProposedContent(cleaned);
     } catch (error: any) {
-      alert(error.message);
+      setAiError(error?.message || 'AI request failed.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleAcceptProposed = async () => {
+    if (!selectedNote || proposedContent === null) return;
+    const updated = { ...selectedNote, content: proposedContent };
+    setSelectedNote(updated);
+    setProposedContent(null);
+    await saveNote(updated.id, updated);
+  };
+
+  const handleRejectProposed = () => {
+    setProposedContent(null);
+    setAiError(null);
   };
 
   if (isEditing && selectedNote) {
@@ -129,13 +171,63 @@ export const NotesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0">
-            <RichTextEditor 
-              content={selectedNote.content}
-              onChange={(html) => setSelectedNote({ ...selectedNote, content: html })}
-              placeholder="Start typing your brilliance..."
-            />
-          </div>
+          {aiError && (
+            <div className="mb-3 p-3 rounded-lg bg-error/10 border border-error/30 text-error text-xs font-bold flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">error</span>
+              {aiError}
+            </div>
+          )}
+
+          {proposedContent !== null ? (
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-surface-container rounded-2xl border border-white/5 overflow-hidden flex flex-col">
+                <div className="px-5 py-3 border-b border-white/5 flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant">Current</p>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-outline">Original</span>
+                </div>
+                <div
+                  className="flex-1 p-5 overflow-auto prose prose-invert max-w-none text-on-surface"
+                  dangerouslySetInnerHTML={{ __html: selectedNote.content || '<p class="text-outline">Empty note</p>' }}
+                />
+              </div>
+              <div className="bg-surface-container rounded-2xl border border-primary/30 overflow-hidden flex flex-col">
+                <div className="px-5 py-3 border-b border-primary/20 flex items-center justify-between bg-primary/5">
+                  <p className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">smart_toy</span>
+                    Proposed Changes
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRejectProposed}
+                      className="px-3 py-1.5 rounded-lg bg-surface-container-highest border border-white/10 text-white text-xs font-black hover:bg-surface-bright transition-colors flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                      Reject
+                    </button>
+                    <button
+                      onClick={handleAcceptProposed}
+                      className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-black hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-sm">check</span>
+                      Accept
+                    </button>
+                  </div>
+                </div>
+                <div
+                  className="flex-1 p-5 overflow-auto prose prose-invert max-w-none text-on-surface"
+                  dangerouslySetInnerHTML={{ __html: proposedContent }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0">
+              <RichTextEditor
+                content={selectedNote.content}
+                onChange={(html) => setSelectedNote({ ...selectedNote, content: html })}
+                placeholder="Start typing your brilliance..."
+              />
+            </div>
+          )}
         </div>
       </DashboardLayout>
     );

@@ -64,6 +64,31 @@ export function getAllRanks(): Array<Omit<RankInfo, 'nextMinScore'> & { nextMinS
   }));
 }
 
+// Visual metadata used by the Ranked page to render tier shields. Kept here so
+// any UI that needs a consistent look for a tier (modal, page, friends list)
+// can pull the same colors/icons.
+export interface TierVisual {
+  icon: string;        // material-symbols-outlined name
+  gradient: string;    // tailwind gradient classes for the shield body
+  ring: string;        // tailwind ring/border color class
+  accent: string;      // tailwind text color for tier label
+  glow: string;        // tailwind shadow color class
+}
+
+const TIER_VISUALS: Record<RankTier, TierVisual> = {
+  Bronze:      { icon: 'shield',            gradient: 'from-amber-700 to-amber-900',     ring: 'ring-amber-500/40',   accent: 'text-amber-400',   glow: 'shadow-amber-700/30' },
+  Silver:      { icon: 'shield',            gradient: 'from-slate-300 to-slate-500',     ring: 'ring-slate-300/40',   accent: 'text-slate-200',   glow: 'shadow-slate-400/30' },
+  Gold:        { icon: 'workspace_premium', gradient: 'from-yellow-400 to-amber-600',    ring: 'ring-yellow-300/50',  accent: 'text-yellow-300',  glow: 'shadow-yellow-500/30' },
+  Platinum:    { icon: 'workspace_premium', gradient: 'from-teal-300 to-cyan-500',       ring: 'ring-cyan-300/50',    accent: 'text-cyan-200',    glow: 'shadow-cyan-400/30' },
+  Diamond:     { icon: 'diamond',           gradient: 'from-sky-400 to-indigo-600',      ring: 'ring-sky-300/50',     accent: 'text-sky-200',     glow: 'shadow-indigo-500/40' },
+  Master:      { icon: 'auto_awesome',      gradient: 'from-fuchsia-500 to-purple-700',  ring: 'ring-fuchsia-400/50', accent: 'text-fuchsia-200', glow: 'shadow-fuchsia-600/40' },
+  Grandmaster: { icon: 'military_tech',     gradient: 'from-rose-500 to-red-700',        ring: 'ring-rose-400/50',    accent: 'text-rose-200',    glow: 'shadow-rose-600/40' },
+};
+
+export function getTierVisual(tier: RankTier): TierVisual {
+  return TIER_VISUALS[tier];
+}
+
 export function computeRank(score: number): RankInfo {
   const s = score || 0;
   let idx = 0;

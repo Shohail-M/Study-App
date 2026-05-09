@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useFirebase } from '../utils/firebaseMode';
@@ -100,6 +100,16 @@ export function useFocusRooms() {
     }, { merge: true });
   }, [user]);
 
+  const leaveRoom = useCallback(async (roomId: string) => {
+    if (!useFirebase) return;
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'rooms', roomId, 'members', user.id));
+    } catch (e) {
+      // Member may already be gone (e.g. tab closed); swallow to avoid noisy logs.
+    }
+  }, [user]);
+
   const updatePresence = useCallback(async (roomId: string, state: 'active' | 'away') => {
     if (!useFirebase) return;
     if (!user) return;
@@ -120,7 +130,7 @@ export function useFocusRooms() {
     await deleteDoc(doc(db, 'rooms', roomId));
   }, [user]);
 
-  return { rooms, isLoading, createRoom, joinRoom, updatePresence, deleteRoom };
+  return { rooms, isLoading, createRoom, joinRoom, leaveRoom, updatePresence, deleteRoom };
 }
 
 export function useFocusRoom(roomId: string) {

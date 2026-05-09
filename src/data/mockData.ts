@@ -31,6 +31,7 @@ export const navItems: readonly NavItem[] = [
   { icon: 'groups', label: 'Rooms', key: 'rooms' },
   { icon: 'diversity_3', label: 'Guilds', key: 'guilds' },
   { icon: 'leaderboard', label: 'Ranked', key: 'leaderboard' },
+  { icon: 'group', label: 'Friends', key: 'friends' },
   { icon: 'calendar_today', label: 'Timetable', key: 'timetable' },
   { icon: 'menu_book', label: 'Books', key: 'books' },
   { icon: 'description', label: 'Notes', key: 'notes' },

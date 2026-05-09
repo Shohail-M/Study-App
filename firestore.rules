@@ -5,9 +5,23 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function uid() { return request.auth.uid; }
 
-    // Users can read/write their own profile doc.
+    // Users: any signed-in user can read profile docs (needed for friends lookup
+    // and rendering peer rank/level), but only the owner can write.
     match /users/{userId} {
-      allow read, write: if signedIn() && userId == uid();
+      allow read: if signedIn();
+      allow write: if signedIn() && userId == uid();
+    }
+
+    // Friendships: stored as a single doc per pair, indexed via the `users` array.
+    // Document id is the sorted "uidA_uidB" pair key.
+    match /friendships/{pairId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.users;
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.users
+        && request.resource.data.requestedBy == uid()
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn() && request.auth.uid in resource.data.users;
+      allow delete: if signedIn() && request.auth.uid in resource.data.users;
     }
 
     // Tasks / notes / timetable / studySessions: user-owned documents.

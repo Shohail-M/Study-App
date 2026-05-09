@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import { getAllRanks } from '../utils/progression';
+import { RankingsModal } from '../components/RankingsModal';
 
 export const SettingsPage: React.FC = () => {
   const { user, updateUser, changePassword, isGoogleUser, resetProgress } = useAuth();
@@ -347,57 +347,7 @@ export const SettingsPage: React.FC = () => {
 
       </div>
 
-      {isRanksOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in"
-            onClick={() => setIsRanksOpen(false)}
-          />
-          <div className="relative w-full max-w-2xl bg-surface-container-high rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl animate-scale-in">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-xl font-bold headline-text text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-secondary">military_tech</span>
-                  Ranks
-                </h2>
-                <p className="text-sm text-on-surface-variant mt-1">Rank increases with your overall score (XP + streak + tasks + books).</p>
-              </div>
-              <button
-                onClick={() => setIsRanksOpen(false)}
-                className="w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-white hover:bg-surface-bright transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">close</span>
-              </button>
-            </div>
-
-            <div className="max-h-[60vh] overflow-auto pr-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {getAllRanks().map(r => (
-                  <div
-                    key={r.name}
-                    className={`p-4 rounded-2xl border ${user?.rank === r.name ? 'border-primary bg-primary/10' : 'border-white/5 bg-surface-container'} transition-colors`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-black text-white headline-text">{r.name}</p>
-                      {user?.rank === r.name && (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary">Current</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-on-surface-variant mt-1">
-                      Unlock at <span className="text-white font-bold">{r.minScore.toLocaleString()}</span> score
-                      {r.nextMinScore ? (
-                        <> · Next at <span className="text-white font-bold">{r.nextMinScore.toLocaleString()}</span></>
-                      ) : (
-                        <> · <span className="text-tertiary font-bold">Top Rank</span></>
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <RankingsModal isOpen={isRanksOpen} onClose={() => setIsRanksOpen(false)} />
     </DashboardLayout>
   );
 };

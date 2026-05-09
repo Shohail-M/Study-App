@@ -19,6 +19,7 @@ import { RoomDetailPage } from './pages/RoomDetailPage';
 import { GuildsPage } from './pages/GuildsPage';
 import { GuildDetailPage } from './pages/GuildDetailPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
+import { FriendsPage } from './pages/FriendsPage';
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
             <Route path="/guilds" element={<ProtectedRoute><GuildsPage /></ProtectedRoute>} />
             <Route path="/guilds/:id" element={<ProtectedRoute><GuildDetailPage /></ProtectedRoute>} />
             <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
+            <Route path="/friends" element={<ProtectedRoute><FriendsPage /></ProtectedRoute>} />
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

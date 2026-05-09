@@ -10,7 +10,7 @@ export const TimetablePage: React.FC = () => {
   const [selectedSlot, setSelectedSlot] = useState<{ day: string; time: string } | null>(null);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sun'];
-  const times = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+  const times = ['05:00', '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
 
   const openAddModal = (day?: string, time?: string) => {
     if (day && time) setSelectedSlot({ day, time });
@@ -26,7 +26,7 @@ export const TimetablePage: React.FC = () => {
 
     const currentH = now.getHours();
     const startH = Number(timeSlot.split(':')[0]);
-    
+
     // Active if it's currently that hour
     return currentH === startH;
   };
@@ -38,7 +38,7 @@ export const TimetablePage: React.FC = () => {
           <h2 className="text-3xl font-extrabold headline-text text-white">Timetable</h2>
           <p className="text-on-surface-variant mt-2">Plan your week for maximum focus.</p>
         </div>
-        <button 
+        <button
           onClick={() => openAddModal()}
           className="px-6 py-3 bg-primary text-on-primary rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
         >
@@ -75,19 +75,19 @@ export const TimetablePage: React.FC = () => {
                 {times.map(time => {
                   const isActive = isCurrentSession(day, time);
                   const entry = timetable?.find((e: TimetableEntry) => e.day === day && e.timeSlot === time);
-                  
+
                   return (
                     <div key={`${day}-${time}`} className={`h-24 p-1 border-b border-white/5 relative group transition-colors ${isActive ? 'bg-primary/5' : ''}`}>
                       {entry ? (
                         <div className={`h-full rounded-xl p-2.5 shadow-sm border-l-4 overflow-hidden relative ${entry.color || 'border-primary bg-primary/20'}`}>
                           <div className="flex justify-between items-start">
-                             <h4 className="font-bold text-white text-[11px] leading-tight line-clamp-2">{entry.subject}</h4>
-                             <button 
-                               onClick={() => deleteEntry(entry.id)}
-                               className="opacity-0 group-hover:opacity-100 transition-opacity text-outline hover:text-error"
-                             >
-                               <span className="material-symbols-outlined text-xs">close</span>
-                             </button>
+                            <h4 className="font-bold text-white text-[11px] leading-tight line-clamp-2">{entry.subject}</h4>
+                            <button
+                              onClick={() => deleteEntry(entry.id)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-outline hover:text-error"
+                            >
+                              <span className="material-symbols-outlined text-xs">close</span>
+                            </button>
                           </div>
                           <p className="text-[9px] text-on-surface-variant font-bold uppercase tracking-tight mt-1 flex items-center gap-1">
                             <span className="material-symbols-outlined text-[10px]">location_on</span> {entry.room}
@@ -102,7 +102,7 @@ export const TimetablePage: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <button 
+                        <button
                           onClick={() => openAddModal(day, time)}
                           className="w-full h-full opacity-0 group-hover:opacity-100 flex items-center justify-center text-outline hover:text-white transition-all"
                         >
@@ -119,8 +119,8 @@ export const TimetablePage: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <AddTimetableModal 
-          onClose={() => setIsModalOpen(false)} 
+        <AddTimetableModal
+          onClose={() => setIsModalOpen(false)}
           defaultDay={selectedSlot?.day}
           defaultTime={selectedSlot?.time}
         />
